@@ -1,0 +1,255 @@
+<!doctype html>  
+<html>
+  <head>  
+    <meta charset="utf-8">  
+    <title>Our First HTML5 Page</title>  
+  </head>  
+
+  <body onload="draw();">  
+    <canvas id="canvas" width="600" height="400">
+      
+    </canvas>
+  </body>  
+
+  <script type="text/javascript">
+    var hitDetection = {
+      pieceWidth: 0,
+      boardWidth: 0,
+      boardHeight: 0,
+
+      getPoint: function(y, x) {
+        y = Math.max(y, 0);
+
+        var yp = (y/this.pieceWidth); 
+        var xp = Math.min(this.cols - 1, Math.floor(x/this.pieceWidth));
+        return { y: yp, x: xp }; 
+      }
+    };
+
+    var board = {
+        init: function(cols, rows) {
+            this.cols = cols;
+            this.rows = rows;
+
+            this.x = new Array(rows);
+            for(var i = 0; i < rows; i++) {
+              this.x[i] = new Array(cols);
+              for(var k = 0; k < cols; k++) {
+                this.x[i][k] = 0;
+              }
+            }
+
+            this.player = 1;
+        }, 
+
+        switchPlayer: function() {
+          if(this.player == 1) {
+            this.player = 2;
+          } else if(this.player == 2) {
+            this.player = 1;
+          }
+        },
+        checkWinner:function() {
+            var win = false;
+            for(var i = 0; i < this.rows && !win; i++) {
+              for(var k = 0; k < this.cols && !win; k++) {
+                var player = this.x[i][k];
+                if(!player) {
+                  continue;
+                }
+
+                var hori = [];
+                var vert = [];
+                var diag1 = [];
+                var diag2 = [];
+
+                for(var m = 0; m < 4; m++) {
+                  if(i + m < this.x.length && this.x[i + m][k] == player) {
+                    vert.push({ x:k,y:(i+m)});
+                  }
+
+                  if(k + m < this.x[0].length && this.x[i][k + m] == player) {
+                    hori.push({x:(k+m),y:i});
+                  } 
+
+                  if(k+m < this.x[0].length && i+m < this.x.length &&
+                      this.x[i + m][k + m] == player) {
+                    diag1.push({x:(k+m),y:(i+m)});
+                  }
+
+                  if(k+m < this.x[0].length && i-m >= 0 &&
+                      this.x[i - m][k + m] == player) {
+                    diag2.push({x:(k+m),y:(i-m)});
+                  }
+                }
+
+                if(hori.length == 4)                   
+                  return hori;
+
+                if(vert.length == 4)
+                  return vert;
+
+                if(diag1.length == 4)
+                  return diag1;
+
+                if(diag2.length == 4)
+                  return diag2;
+
+              }
+            }
+
+            return win;
+        },
+        insert: function(col) {
+            for(var i = this.rows-1; i >= 0; i--) {
+              if(this.x[i][col] == 0) {
+                var player = this.player;
+                this.x[i][col] = this.player;
+
+                var path = this.checkWinner();
+                if(path) {
+                  this.winner = this.player;
+                  this.winningPath = path;
+                } else {
+                  this.switchPlayer();
+                }
+                return { player: player, row: i, col: col};
+              }
+            }
+
+            return false;
+        }
+    };
+
+    var drawFloatingPiece;
+    var insertPiece;
+
+    function drawPiece(ctx, sx, sy, pieceWidth, piecePadding, pieceBackground, pieceForeground) {
+      if(pieceBackground) {
+        ctx.fillStyle = pieceBackground;
+      } else {
+        ctx.fillStyle = "rgb(0, 0, 0)";
+      }
+      ctx.fillRect(sx, sy, pieceWidth, pieceWidth);
+
+      if(pieceForeground) {
+        ctx.fillStyle = pieceForeground;
+      } else {
+        ctx.fillStyle = "rgb(200,0,0)";
+      }
+      ctx.fillRect(sx + piecePadding, sy + piecePadding, pieceWidth - 2*piecePadding, pieceWidth - 2*piecePadding);
+
+    }
+
+    function draw() {
+      var canvas = document.getElementById('canvas');
+      var ctx = canvas.getContext('2d');
+      var topHeight = 100;
+
+      var cHeight = canvas.height - topHeight;
+      var cWidth = Math.min(canvas.width, canvas.height * 7/6);
+
+      var borderSize = 10;
+      var rowLength = 7;
+      var colHeight = 6; 
+
+      var c1 = 'rgb(0,0,0)';
+      var c2 = 'rgb(255,255,255)';
+      var bg = 'rgb(200,0,0)';
+
+      board.init(rowLength, colHeight);
+
+      var pieceWidth = Math.floor((cWidth)/rowLength);
+      var pieceHeight = Math.floor((cHeight)/colHeight);
+      
+      var pieceWidth = Math.min(pieceWidth, pieceHeight);
+      var pieceHeight = pieceWidth;
+
+      var piecePadding = Math.floor(pieceWidth/20);
+      var lastPieceCol;
+
+      cWidth = pieceWidth * rowLength;
+      cHeight = pieceHeight * colHeight;
+
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, topHeight, cWidth , cHeight);
+      ctx.fillRect(0, 0, cWidth, topHeight);
+
+      hitDetection.pieceWidth = pieceWidth;
+      hitDetection.boardWidth = cWidth;
+      hitDetection.boardHeight = cHeight;
+      hitDetection.rows = colHeight;
+      hitDetection.cols = rowLength;
+
+      
+      drawFloatingPiece = function(col) {
+        if(lastPieceCol != null) {
+          drawPiece(ctx, lastPieceCol*pieceWidth, topHeight - pieceWidth, pieceWidth, piecePadding, bg, bg); 
+        }
+
+        lastPieceCol = col;
+        var c = (board.player == 2) ? c1 : c2;
+        drawPiece(ctx, col*pieceWidth, topHeight - pieceWidth, pieceWidth, piecePadding, null, c); 
+      };
+
+      var waiting = 0;
+      var reset = function() {
+        for(var i = 0; i < rowLength; i++) {
+          for(var k = 0; k < colHeight; k++) {
+            var sx = i * pieceWidth;
+            var sy = k * pieceWidth + topHeight; 
+
+            drawPiece(ctx, sx, sy, pieceWidth, piecePadding);
+          }
+        }
+      } 
+
+      insertPiece = function(col) {
+        var insert = board.insert(col);
+        if(insert) {
+          var c = (insert.player == 1) ? c2 : c1;
+          console.log('insert.player: ' + insert.player);
+
+          drawPiece(ctx, insert.col * pieceWidth, insert.row * pieceWidth + topHeight, pieceWidth, piecePadding, 'rgb(0,0,0)', c);
+          if(board.winner) {
+            //show winner block
+            for(var i = 0; i < board.winningPath.length; i++) {
+              var p = (board.winningPath[i]);
+              var x = p.x;
+              var y = p.y;
+              drawPiece(ctx, x * pieceWidth, y * pieceWidth + topHeight, pieceWidth, piecePadding, 'rgb(0,255,0)', c);
+            }
+            //reset board
+            waiting = 1;
+            reset();
+
+            //update scoreboard
+          }
+        }
+      }
+      reset();
+
+      
+
+      canvas.onmousemove = function(e) {
+            if(waiting) {
+              return;
+            }
+
+            var rect = canvas.getBoundingClientRect();
+            var point = hitDetection.getPoint(e.y - topHeight - rect.top, e.x - rect.left);
+            drawFloatingPiece(point.x);
+          };
+      canvas.onclick = function(e) {
+        if(waiting) {
+          return;
+        }
+        var rect = canvas.getBoundingClientRect();
+        var point = hitDetection.getPoint(e.y - topHeight - rect.top, e.x - rect.left);
+        
+        insertPiece(point.x);
+        drawFloatingPiece(point.x);
+      };
+    }
+  </script>
+</html>
