@@ -27,27 +27,35 @@
     };
 
     var board = {
-        init: function(cols, rows) {
-            this.cols = cols;
-            this.rows = rows;
-
-            this.x = new Array(rows);
-            for(var i = 0; i < rows; i++) {
-              this.x[i] = new Array(cols);
-              for(var k = 0; k < cols; k++) {
+        clear: function() {
+          this.player = 1;
+          this.x = new Array(this.rows);
+            for(var i = 0; i < this.rows; i++) {
+              this.x[i] = new Array(this.cols);
+              for(var k = 0; k < this.cols; k++) {
                 this.x[i][k] = 0;
               }
             }
 
-            this.player = 1;
+            this.winner = null;
+        },
+
+        init: function(cols, rows) {
+            this.cols = cols;
+            this.rows = rows;
+
+            this.clear();
         }, 
 
+
         switchPlayer: function() {
+          console.log('a' + this.player);
           if(this.player == 1) {
             this.player = 2;
           } else if(this.player == 2) {
             this.player = 1;
           }
+          console.log('a' + this.player);
         },
         checkWinner:function() {
             var win = false;
@@ -141,6 +149,14 @@
 
     }
 
+    function Node() {
+      this.children = new Array();
+      this.level = 0;
+    }
+
+    function think(board) {
+    }
+
     function draw() {
       var canvas = document.getElementById('canvas');
       var ctx = canvas.getContext('2d');
@@ -193,7 +209,9 @@
       };
 
       var waiting = 0;
+      var ai = 0;
       var reset = function() {
+        board.clear();
         for(var i = 0; i < rowLength; i++) {
           for(var k = 0; k < colHeight; k++) {
             var sx = i * pieceWidth;
@@ -202,13 +220,14 @@
             drawPiece(ctx, sx, sy, pieceWidth, piecePadding);
           }
         }
+        waiting = 0;
       } 
 
       insertPiece = function(col) {
         var insert = board.insert(col);
         if(insert) {
           var c = (insert.player == 1) ? c2 : c1;
-          console.log('insert.player: ' + insert.player);
+          console.log(insert);
 
           drawPiece(ctx, insert.col * pieceWidth, insert.row * pieceWidth + topHeight, pieceWidth, piecePadding, 'rgb(0,0,0)', c);
           if(board.winner) {
@@ -240,8 +259,9 @@
             var point = hitDetection.getPoint(e.y - topHeight - rect.top, e.x - rect.left);
             drawFloatingPiece(point.x);
           };
+
       canvas.onclick = function(e) {
-        if(waiting) {
+        if(waiting || ai) {
           return;
         }
         var rect = canvas.getBoundingClientRect();
